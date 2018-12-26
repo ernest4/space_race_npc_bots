@@ -49,22 +49,13 @@ function create() {
                         function itself rather than the object the function is
                         inside.*/
     //this.socket = io();
-    this.socket = io("http://localhost:3000");
+    this.socket = io();
 
     this.otherPlayers = this.physics.add.group(); /*groups in Phaser, they are 
     a way for us to manage similar game objects and control them as one unit.
     One example is, instead of having to check for collisions on each of those
     game objects separately, we can check for collision between the group and 
     other game objects. */
-
-
-
-
-    /////// MOVE CLIENT SIDE LOGIC TO EXECUTE ON SERVER TO MAKE NPCs!!!!!!
-
-
-
-
 
     this.socket.on('currentPlayers', function(players){
         //for each of the players in the game
@@ -128,61 +119,6 @@ function create() {
     this.socket.on('serverHardware', function(serverHardware){
         console.log(serverHardware);
     });
-
-    //////////////////////////////TESING, remove soon...
-    //TESTING 2 simulaneous clients
-    this.socket2 = io("http://localhost:3000");
-
-    this.socket2.on('currentPlayers', function(players){
-        //for each of the players in the game
-        Object.keys(players).forEach(function(id){
-            //if the player is this player, add it to the game...
-            if (players[id].playerId === self.socket.id){
-                addPlayer(self, players[id]);
-            } else { //...some other player, add it to the 'others' group
-                addOtherPlayers(self, players[id]);
-            }
-        });
-    });
-
-    this.socket2.on('newPlayer', function(playerInfo){
-        addOtherPlayers(self, playerInfo);
-    });
-
-    this.socket2.on('disconnect', function(playerId){
-        self.otherPlayers.children.getArray().forEach(function(otherPlayer){
-            if (otherPlayer.playerId === playerId){
-                otherPlayer.destroy();
-            }
-        });
-    });
-
-    this.socket2.on('playerMoved', function(playerInfo){
-        /*Find the player that moved in the stored array of ther players and
-        update it's position and rotation */
-        self.otherPlayers.children.getArray().forEach(function(otherPlayer){
-            if (otherPlayer.playerId === playerInfo.playerId){
-                otherPlayer.setRotation(playerInfo.rotation);
-                otherPlayer.setPosition(playerInfo.x, playerInfo.y);
-            }
-        });
-    });
-
-    this.socket2.on('scoreUpdate', function(scores){
-        self.blueScoreText.setText('Blue: ' + scores.blue);
-        self.redScoreText.setText('Red: ' + scores.red);
-    });
-
-    this.socket2.on('starLocation', function(starLocation){
-        //if star exists, destroy it and make a new one based on recieved location
-        if (self.star) self.star.destroy();
-        self.star = self.physics.add.image(starLocation.x, starLocation.y, 'star');
-
-        //collision detection between this ship and star
-        self.physics.add.overlap(self.ship, self.star, function(){
-            this.socket.emit('starCollected');
-        }, null, self);
-    });
 }
 
 
@@ -209,9 +145,6 @@ function update() {
         //DEBUGGING server hardware
         if (this.cursors.down.isDown) {
             this.socket.emit('serverHardware');
-
-            ////////TESTING REMOVE SOON
-            this.socket2.emit('serverHardware');
         }
 
         this.physics.world.wrap(this.ship, 5); /*If the ship goes off screen we
@@ -224,9 +157,6 @@ function update() {
         var r = this.ship.rotation;
         if (this.ship.oldPosition && (x !== this.ship.oldPosition.x || y !== this.ship.oldPosition.y || r !== this.ship.oldPosition.rotation)){
             this.socket.emit('playerMovement', { x: this.ship.x, y: this.ship.y, rotation: this.ship.rotation});
-
-            ////////TESTING REMOVE SOON
-            this.socket2.emit('playerMovement', { x: this.ship.x, y: this.ship.y, rotation: this.ship.rotation});
         }
 
         //save old position data
