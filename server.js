@@ -1,3 +1,13 @@
+/* Copyright 2018 Ernestas Monkevicius
+
+This is a stripped down version of the game server, repurposed as an NPC
+or 'bots' server for stress testing the game server and providing NPC clients
+to the game.
+
+The server is stripped down and simpliefied to simulate clients running at full
+speed as much as possible as we're interested in stressing the game server, not
+the NPC server. Thus, most of the game server messages are recieved, but ignored.
+*/
 var express = require('express');
 var app = express();
 var server = require('http').Server(app);
@@ -7,8 +17,8 @@ var clientIO = require('socket.io-client'); //for NPC client bots
 const numCPUs = require('os').cpus().length; //single threaded for now, potential to utilize more cores in future...
 
 /* Globals */
-var players = {};
-var npcSockets = [];
+var gameServer = 'https://node-game-server-1.herokuapp.com/';
+var npcs = {};
 var npsState = { bots: 0 }
 
 const PORT = process.env.PORT || 3000;
@@ -22,105 +32,64 @@ app.get('/', function(req, res){
 io.on('connection', function (socket){
     console.log(`a user connected: ${socket.id}`); //DEBUGGING
 
-    //create a new player and add it to the player object
-    players[socket.id] = {
-        rotation: 0,
-        x: Math.floor(Math.random() * 700) + 50,
-        y: Math.floor(Math.random() * 500) + 50,
-        playerId: socket.id,
-        team: (Math.floor(Math.random() * 2) === 0) ? 'red' : 'blue'
-    }
+    socket.on('addBots', function(params){
+        //add bot(s)
 
-    socket.on('addBots', function(){
-        //add bots
-        //create a connection
-        var socket = clientIO.connect('https://node-game-server-1.herokuapp.com/', {reconnection: true});
+        for (let i = 0; i < params.count; i++){
+            //create a connection
+            let npcSocket = clientIO.connect(gameServer, {reconnection: true});
+            let npcSocketID;
 
-        //testing
-        console.log(`NPC server:: ${socket.id}`);
+            npcSocket.on('connect', function() {
+                npcSocketID = npcSocket.io.engine.id;
+            });
 
-        //npcSockets.push(socket); ?? 
+            npcSocket.on('currentPlayers', function(players){
+                //get the server generate player state for this bot
+                npcs[npcSocketID] = players[npcSocketID];
+                npcs[npcSocketID].socketHandle = npcSocket;
 
+                //console.log(npcs[npcSocketID]); //DEBUGGING
+            });
+
+            npsState.bots++;
+        }
+
+        //npcSocket.emit('playerMovement', { x: this.ship.x, y: this.ship.y, rotation: this.ship.rotation}); ??
+
+        //update the NPC server interface
         socket.emit('npcState', npsState);
     });
 
-    socket.on('removeBots', function(){
-        //remove bots
+    socket.on('removeBots', function(params){
+        //remove bot(s)
 
-        //...socket.disconnect()
+        if (npsState.bots == 0) return;
+
+        var npcIDsArray = Object.keys(npcs);
+        if (params.count === 'all') {
+            npcIDsArray.forEach(function(npcToBeRemoved){
+                npcs[npcToBeRemoved].socketHandle.disconnect(); //...from game server.
+            });
+
+            npcs = {}; //clear the whole dict, leaving old one to gc
+            npsState.bots = 0;
+        } else {
+            var npcToBeRemoved = npcIDsArray[0]; //FIFO
+            npcs[npcToBeRemoved].socketHandle.disconnect(); //...from game server.
+            delete npcs[npcToBeRemoved]; //...from npcs dict.
+            npsState.bots--;
+        }
+
+        //update the NPC server interface
         socket.emit('npcState', npsState);
     });
-
-    //Update the new player of the current game state...
-    //send the players objects to new player
-    //socket.emit('currentPlayers', players);
-
-    //send the star object to the new player
-    //socket.emit('starLocation', star);
-    //getMatchData("star", socket);
-
-    //send the current scores
-    //socket.emit('scoreUpdate', scores);
-    //getMatchData("scores", socket);
-
 
     socket.on('disconnect', function(){
         console.log(`user disconnected: ${socket.id}`); //DEBUGGING
-
-        //leave players for garbage collection
-        players = null;
-
         //emit a message to server that NPCs server is disconnected??
         //io.emit('disconnect', socket.id);
     });
-
-
-    /*When the playerMovement event is received on the server, we update that
-    player’s information that is stored on the server, emit a new event called 
-    playerMoved to all other players, and in this event we pass the updated
-    player’s information. */
-    socket.on('playerMovement', function(movementData){
-        players[socket.id].x = movementData.x;
-        players[socket.id].y = movementData.y;
-        players[socket.id].rotation = movementData.rotation;
-
-
-        //emit message to all players about the player that moved
-            //socket.broadcast.emit('playerMoved', players[socket.id]);
-
-        /*volatile messages should be faster as they dont require confirmation 
-        (but then they may not reach the sender)*/
-        socket.volatile.broadcast.emit('playerMoved', players[socket.id]);
-    });
-
-    /*update the correct team’s score, generate a new location for the star, 
-    and let each player know about the updated scores and the stars new location.*/
-    /*socket.on('starCollected', function(){
-        if (players[socket.id].team === 'red') scores.red += 10;
-        else scores.blue += 10;
-
-        star.x = Math.floor(Math.random() * 700) + 50;
-        star.y = Math.floor(Math.random() * 500) + 50;
-
-        //broadcast
-        io.emit('starLocation', star);
-        io.emit('scoreUpdate', scores);
-    });*/
-
-    //for testing...
-    /*socket.on('saveToDB', function(){
-        if (star == null || scores == null) return; //not ready for saving yet...
-
-        io.emit('savedToDB', `Saved the data to database... BLUE: ${scores.blue} RED: ${scores.red} Time: ${new Date().toTimeString()}`);
-
-        saveMatchData('star');
-        saveMatchData('scores');
-    });*/
-
-    //DEBUG
-    /*socket.on('serverHardware', function(){
-        socket.emit('serverHardware', { numCPUs: numCPUs });
-    });*/
 });
 
 server.listen(PORT, function(){

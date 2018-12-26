@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Copyright 2018 Ernestas Monkevicius -->
 <html>
 
     <head>
@@ -13,8 +14,10 @@
 
         <!-- <p id="message"></p> -->
         <p id="npcState"></p>
-        <button type="button" id="addBotsBtn">Add Bots</button>
-        <button type="button" id="removeBotsBtn">Remove Bots</button>
+        <button type="button" id="addBotsBtn">Add Bot</button>
+        <button type="button" id="add20BotsBtn">Add 20 Bots</button>
+        <button type="button" id="removeBotsBtn">Remove Bot</button>
+        <button type="button" id="removeAllBotsBtn">Remove All</button>
 
         <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
         <script>
@@ -28,15 +31,23 @@
             });*/
 
             $('#addBotsBtn').on('click', function(){
-                socket.emit('addBots');
+                socket.emit('addBots', { count: 1 });
+            });
+
+            $('#add20BotsBtn').on('click', function(){
+                socket.emit('addBots', { count: 20 });
             });
 
             $('#removeBotsBtn').on('click', function(){
-                socket.emit('removeBots');
+                socket.emit('removeBots', { count: 1 });
+            });
+
+            $('#removeAllBotsBtn').on('click', function(){
+                socket.emit('removeBots', { count: 'all' });
             });
 
             socket.on('npcState', function(npcState){
-                $('#npcState').text(npcState);
+                $('#npcState').text(`Bot Count: ${npcState.bots}`);
             });
         });
         </script>
