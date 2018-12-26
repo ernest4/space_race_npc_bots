@@ -18,6 +18,7 @@
         <button type="button" id="add20BotsBtn">Add 20 Bots</button>
         <button type="button" id="removeBotsBtn">Remove Bot</button>
         <button type="button" id="removeAllBotsBtn">Remove All</button>
+        <button type="button" id="moveToggleBtn">Move Toggle</button>
 
         <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
         <script>
@@ -44,6 +45,12 @@
 
             $('#removeAllBotsBtn').on('click', function(){
                 socket.emit('removeBots', { count: 'all' });
+            });
+
+            let botsMovementState = {move: false};
+            $('#moveToggleBtn').on('click', function(){
+                botsMovementState.move = !botsMovementState.move;
+                socket.emit('moveBots', botsMovementState);
             });
 
             socket.on('npcState', function(npcState){

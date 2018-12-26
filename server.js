@@ -20,6 +20,7 @@ const numCPUs = require('os').cpus().length; //single threaded for now, potentia
 var gameServer = 'https://node-game-server-1.herokuapp.com/';
 var npcs = {};
 var npsState = { bots: 0 }
+var movementIntervalFunction;
 
 const PORT = process.env.PORT || 3000;
 
@@ -55,8 +56,6 @@ io.on('connection', function (socket){
             npsState.bots++;
         }
 
-        //npcSocket.emit('playerMovement', { x: this.ship.x, y: this.ship.y, rotation: this.ship.rotation}); ??
-
         //update the NPC server interface
         socket.emit('npcState', npsState);
     });
@@ -83,6 +82,21 @@ io.on('connection', function (socket){
 
         //update the NPC server interface
         socket.emit('npcState', npsState);
+    });
+
+    socket.on('moveBots', function(botsMovementState){
+        if (botsMovementState.move){
+            movementIntervalFunction = setInterval(function(){
+                //For each npc generate new npc pos and update the game server
+                Object.keys(npcs).forEach(function(npc){
+                    npcs[npc].rotation = npcs[npc].rotation + 0.01;
+                    npcs[npc].x = npcs[npc].x > 800 ? 0 : npcs[npc].x + 1;
+                    npcs[npc].y = npcs[npc].y > 550 ? 0 : npcs[npc].y + 1;
+
+                    npcs[npc].socketHandle.emit('playerMovement', { x: npcs[npc].x, y: npcs[npc].y, rotation: npcs[npc].rotation});
+                });
+            }, 10);
+        } else clearInterval(movementIntervalFunction);
     });
 
     socket.on('disconnect', function(){
