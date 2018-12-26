@@ -90,12 +90,13 @@ io.on('connection', function (socket){
                 //For each npc generate new npc pos and update the game server
                 Object.keys(npcs).forEach(function(npc){
                     npcs[npc].rotation = npcs[npc].rotation + 0.01;
+                    //increment position or wrap around
                     npcs[npc].x = npcs[npc].x > 800 ? 0 : npcs[npc].x + 1;
                     npcs[npc].y = npcs[npc].y > 550 ? 0 : npcs[npc].y + 1;
 
                     npcs[npc].socketHandle.emit('playerMovement', { x: npcs[npc].x, y: npcs[npc].y, rotation: npcs[npc].rotation});
                 });
-            }, 16);
+            }, 16 * 3);
         } else clearInterval(movementIntervalFunction);
     });
 
