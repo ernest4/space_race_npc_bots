@@ -95,7 +95,7 @@ io.on('connection', function (socket){
 
                     npcs[npc].socketHandle.emit('playerMovement', { x: npcs[npc].x, y: npcs[npc].y, rotation: npcs[npc].rotation});
                 });
-            }, 10);
+            }, 16);
         } else clearInterval(movementIntervalFunction);
     });
 
