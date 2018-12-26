@@ -7,25 +7,36 @@
 
     <body>
         <script src="/socket.io/socket.io.js"></script>
-        <script src="//cdn.jsdelivr.net/npm/phaser@3.3.0/dist/phaser.min.js"></script>
-        <script src="js/game.js"></script>
+        
+        <!-- <script src="//cdn.jsdelivr.net/npm/phaser@3.3.0/dist/phaser.min.js"></script> -->
+        <!-- <script src="js/game.js"></script> -->
 
-        <p id="message"></p>
-        <button type="button" id="saveBtn">Save to DB</button>
+        <!-- <p id="message"></p> -->
+        <p id="npcState"></p>
+        <button type="button" id="addBotsBtn">Add Bots</button>
+        <button type="button" id="removeBotsBtn">Remove Bots</button>
 
         <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
         <script>
         $(function () {
-            var socket = io();
+            var socket = io(); //connect to npc/bot server
 
-            socket.on('savedToDB', function(data){
+            /*socket.on('savedToDB', function(data){
                 console.log(data); //TESTING
                 
                 $('#message').text(data);
+            });*/
+
+            $('#addBotsBtn').on('click', function(){
+                socket.emit('addBots');
             });
 
-            $('#saveBtn').on('click', function(){
-                socket.emit('saveToDB');
+            $('#removeBotsBtn').on('click', function(){
+                socket.emit('removeBots');
+            });
+
+            socket.on('npcState', function(npcState){
+                $('#npcState').text(npcState);
             });
         });
         </script>

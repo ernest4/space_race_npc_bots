@@ -56,6 +56,15 @@ function create() {
     game objects separately, we can check for collision between the group and 
     other game objects. */
 
+
+
+
+    /////// MOVE CLIENT SIDE LOGIC TO EXECUTE ON SERVER TO MAKE NPCs!!!!!!
+
+
+
+    
+
     this.socket.on('currentPlayers', function(players){
         //for each of the players in the game
         Object.keys(players).forEach(function(id){
