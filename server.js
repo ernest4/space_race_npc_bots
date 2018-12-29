@@ -17,10 +17,12 @@ var clientIO = require('socket.io-client'); //for NPC client bots
 const numCPUs = require('os').cpus().length; //single threaded for now, potential to utilize more cores in future...
 
 /* Globals */
-var gameServer = 'https://node-game-server-1.herokuapp.com/';
+//var gameServer = 'https://node-game-server-1.herokuapp.com/';
+var gameServer = 'https://node-game-server-2.herokuapp.com/';
 var npcs = {};
 var npsState = { bots: 0 }
 var movementIntervalFunction;
+var reusableMovementObject = { x: 0, y: 0, rotation: 0}
 
 const PORT = process.env.PORT || 3000;
 
@@ -63,14 +65,14 @@ io.on('connection', function (socket){
 
             npcSocket.on(eventMSG.player.list, function(players){
                 //get the server generate player state for this bot
-                console.log(players[npcSocketID]); //testing
+                //console.log(players[npcSocketID]); //testing
 
-                npcs[npcSocketID] = {
+                /*npcs[npcSocketID] = {
                     binaryBuffer: players[npcSocketID], //Buffer instance
                     socketHandle: npcSocket
-                };
-                /*npcs[npcSocketID].binaryBlobView = new DataView(players[npcSocketID]);
-                npcs[npcSocketID].socketHandle = npcSocket;*/
+                };*/
+                npcs[npcSocketID] = players[npcSocketID];
+                npcs[npcSocketID].socketHandle = npcSocket;
 
                 //console.log(npcs[npcSocketID]); //DEBUGGING
             });
@@ -113,12 +115,14 @@ io.on('connection', function (socket){
             movementIntervalFunction = setInterval(function(){
                 //For each npc generate new npc pos and update the game server
                 Object.keys(npcs).forEach(function(npc){
-                    /*npcs[npc].rotation = npcs[npc].rotation + 0.01;
-                    //increment position or wrap around
-                    npcs[npc].x = npcs[npc].x > 800 ? 0 : npcs[npc].x + 1;
-                    npcs[npc].y = npcs[npc].y > 550 ? 0 : npcs[npc].y + 1;*/
-
                     var currentNPC = npcs[npc];
+
+                    currentNPC.rotation = currentNPC.rotation + 0.01;
+                    //increment position or wrap around
+                    currentNPC.x = currentNPC.x > 800 ? 0 : currentNPC.x + 1;
+                    currentNPC.y = currentNPC.y > 550 ? 0 : currentNPC.y + 1;
+
+                    /*var currentNPC = npcs[npc];
 
                     console.log(currentNPC.binaryBuffer.readInt16BE(0));
                     var updatedRotation = currentNPC.binaryBuffer.readInt16BE(0) + 1;
@@ -127,10 +131,14 @@ io.on('connection', function (socket){
 
                     currentNPC.binaryBuffer.writeInt16BE(updatedRotation, 0);
                     currentNPC.binaryBuffer.writeUInt16BE(updatedPositionX, 2);
-                    currentNPC.binaryBuffer.writeUInt16BE(updatedPositionY, 4);
+                    currentNPC.binaryBuffer.writeUInt16BE(updatedPositionY, 4);*/
 
+                    reusableMovementObject.x = currentNPC.x;
+                    reusableMovementObject.y = currentNPC.y;
+                    reusableMovementObject.rotation = currentNPC.rotation;
+                    currentNPC.socketHandle.emit(eventMSG.player.movement, reusableMovementObject);
                     //currentNPC.socketHandle.emit(eventMSG.player.movement, movementToBinary({ x: npcs[npc].x, y: npcs[npc].y, rotation: npcs[npc].rotation}));
-                    currentNPC.socketHandle.emit(eventMSG.player.movement, currentNPC.binaryBuffer);
+                    //currentNPC.socketHandle.emit(eventMSG.player.movement, currentNPC.binaryBuffer);
                 });
             }, updateRate);
         } else clearInterval(movementIntervalFunction);
