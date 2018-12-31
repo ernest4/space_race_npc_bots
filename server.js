@@ -20,9 +20,19 @@ const numCPUs = require('os').cpus().length; //single threaded for now, potentia
 //var gameServer = 'https://node-game-server-1.herokuapp.com/';
 var gameServer = 'https://node-game-server-2.herokuapp.com/';
 var npcs = {};
-var npsState = { bots: 0 }
+var npcKeys = [];
+var npsState = { bots: 0 };
 var movementIntervalFunction;
-var reusableMovementObject = { x: 0, y: 0, rotation: 0}
+var reusableMovementObject = { x: 0, y: 0, rotation: 0};
+//var dateObj = new Date();
+var currenTime = Date.now();
+var deltaTime = 0;
+var lowestDeltaTime = 0;
+var averageDeltaTime = 0;
+var maxDeltaTime = 0;
+var tick = 0;
+var frameCount = 0;
+var serverState = {fpsMin: 1000000, fpsAvg: 0, fpsMax: 0, fpsTarget: 20};
 
 const PORT = process.env.PORT || 3000;
 
@@ -79,6 +89,7 @@ io.on('connection', function (socket){
 
             npsState.bots++;
         }
+        //npcKeys = Object.keys(npcs); //caching ... doesnt work, for some reason npcs = {} the very first time 'addBots' fires
 
         //update the NPC server interface
         socket.emit('npcState', npsState);
@@ -87,18 +98,18 @@ io.on('connection', function (socket){
     socket.on('removeBots', function(params){
         //remove bot(s)
 
-        if (npsState.bots == 0) return;
+        if (npsState.bots === 0) return;
 
-        var npcIDsArray = Object.keys(npcs);
+        npcKeys = Object.keys(npcs); //caching
         if (params.count === 'all') {
-            npcIDsArray.forEach(function(npcToBeRemoved){
+            npcKeys.forEach(function(npcToBeRemoved){
                 npcs[npcToBeRemoved].socketHandle.disconnect(); //...from game server.
             });
 
             npcs = {}; //clear the whole dict, leaving old one to gc
             npsState.bots = 0;
         } else {
-            var npcToBeRemoved = npcIDsArray[0]; //FIFO
+            var npcToBeRemoved = npcKeys[0]; //FIFO
             npcs[npcToBeRemoved].socketHandle.disconnect(); //...from game server.
             delete npcs[npcToBeRemoved]; //...from npcs dict.
             npsState.bots--;
@@ -109,18 +120,46 @@ io.on('connection', function (socket){
     });
 
     socket.on('moveBots', function(botsMovementState){
-        var updateRate = 16 * 3;
+        var updateRate = 1000 / serverState.fpsTarget;
+        npcKeys = Object.keys(npcs); //caching
 
         if (botsMovementState.move){
+            var lastUpdateFinishTime = Date.now();
+            //console.log(`initial lastUpdateFinishTime:${lastUpdateFinishTime}`);
+
             movementIntervalFunction = setInterval(function(){
                 //For each npc generate new npc pos and update the game server
-                Object.keys(npcs).forEach(function(npc){
+
+                currenTime = Date.now();
+                deltaTime = currenTime - lastUpdateFinishTime;
+
+                if (tick >= 1000) {
+                    averageDeltaTime = tick / frameCount; //seconds per frame
+
+                    serverState.fpsMin = (frameCount < serverState.fpsMin) ? frameCount : serverState.fpsMin;
+                    serverState.fpsAvg = frameCount;
+                    serverState.fpsMax = (frameCount > serverState.fpsMax) ? frameCount : serverState.fpsMax;
+
+                    socket.emit('serverState', serverState);
+
+                    tick = 0;
+                    frameCount = 0;
+                } else {
+                    tick += deltaTime;
+                    frameCount++;
+                }
+
+                var speedRotation = 0.0001;
+                var speedX = 0.01;
+                var speedY = 0.01;
+
+                npcKeys.forEach(function(npc){
                     var currentNPC = npcs[npc];
 
-                    currentNPC.rotation = currentNPC.rotation + 0.01;
+                    currentNPC.rotation = currentNPC.rotation + (speedRotation * deltaTime);
                     //increment position or wrap around
-                    currentNPC.x = currentNPC.x > 800 ? 0 : currentNPC.x + 1;
-                    currentNPC.y = currentNPC.y > 550 ? 0 : currentNPC.y + 1;
+                    currentNPC.x = currentNPC.x > 800 ? 0 : currentNPC.x + (speedX * deltaTime);
+                    currentNPC.y = currentNPC.y > 550 ? 0 : currentNPC.y + (speedY * deltaTime);
 
                     /*var currentNPC = npcs[npc];
 
@@ -140,6 +179,8 @@ io.on('connection', function (socket){
                     //currentNPC.socketHandle.emit(eventMSG.player.movement, movementToBinary({ x: npcs[npc].x, y: npcs[npc].y, rotation: npcs[npc].rotation}));
                     //currentNPC.socketHandle.emit(eventMSG.player.movement, currentNPC.binaryBuffer);
                 });
+
+                lastUpdateFinishTime = currenTime;
             }, updateRate);
         } else clearInterval(movementIntervalFunction);
     });

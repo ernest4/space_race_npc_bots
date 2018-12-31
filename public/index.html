@@ -16,6 +16,7 @@
         <p id="version">v0.0.1</p>
         <p id="protocol">Protocol: JSON</p>
         <p id="npcState"></p>
+        <p id="serverState"></p>
         <button type="button" id="addBotsBtn">Add Bot</button>
         <button type="button" id="add20BotsBtn">Add 20 Bots</button>
         <button type="button" id="removeBotsBtn">Remove Bot</button>
@@ -57,6 +58,10 @@
 
             socket.on('npcState', function(npcState){
                 $('#npcState').text(`Bot Count: ${npcState.bots}`);
+            });
+
+            socket.on('serverState', function(serverState){
+                $('#serverState').text(`NPC Server FPS:: min: ${serverState.fpsMin}, avg: ${serverState.fpsAvg}, max: ${serverState.fpsMax}, target: ${serverState.fpsTarget}`);
             });
         });
         </script>
